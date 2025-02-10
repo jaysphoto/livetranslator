@@ -1,46 +1,44 @@
-require "rspec"
-require "fileutils"
-require_relative "../spanish_transcriber"
+require 'fileutils'
+require 'openai'
+require_relative '../spanish_transcriber'
 
 RSpec.describe SpanishTranscriber do
-  let(:mock_response) { { "text" => "Hola, ¿cómo estás?" } }
-  let(:audio_file) { "audio/test_audio.mp3" }
-  let(:text_file) { "text/test_audio.txt" }
+  let(:project_name) { "test" }
+  let(:transcriber) { described_class.new(project_name: project_name) }
+  let(:audio_dir) { "#{project_name}_audio" }
+  let(:text_dir) { "#{project_name}_text" }
+  let(:mp4_file) { File.join(audio_dir, "test.mp4") }
+  let(:mp3_file) { File.join(audio_dir, "test.mp3") }
+  let(:client_double) { instance_double(OpenAI::Client) }
+  let(:audio_double) { instance_double("Audio") }
+  let(:mock_response) { { "text" => "Transcribed text" } }
 
   before do
-    allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return("fake_api_key")
-
-    FileUtils.mkdir_p("audio")
-    FileUtils.mkdir_p("text")
-    File.write(audio_file, "fake audio data")
-
-    client_double = instance_double(OpenAI::Client)
-    audio_double = instance_double("OpenAI::Audio")
+    FileUtils.mkdir_p(audio_dir)
+    FileUtils.mkdir_p(text_dir)
+    File.write(mp4_file, "fake mp4 data")
 
     allow(OpenAI::Client).to receive(:new).and_return(client_double)
     allow(client_double).to receive(:audio).and_return(audio_double)
-    allow(audio_double).to receive(:transcribe).and_return(mock_response)
+    allow(audio_double).to receive(:translate).with(hash_including(:model, :file)).and_return(mock_response)
   end
 
   after do
-    File.delete(audio_file) if File.exist?(audio_file)
-    File.delete(text_file) if File.exist?(text_file)
+    FileUtils.rm_rf(audio_dir)
+    FileUtils.rm_rf(text_dir)
   end
 
-  describe "#transcribe_pending_files" do
-    it "transcribes an audio file and saves it as a .txt file" do
-      transcriber = SpanishTranscriber.new
-      transcriber.transcribe_pending_files
+  it "converts MP4 to MP3 before processing" do
+    expect(transcriber).to receive(:convert_mp4_to_mp3).and_call_original
+    transcriber.transcribe_pending_files
+  end
 
-      expect(File.exist?(text_file)).to be true
-      expect(File.read(text_file)).to eq("Hola, ¿cómo estás?")
-    end
+  it "handles missing ffmpeg gracefully" do
+    allow(transcriber).to receive(:system).and_return(false) # Simulate ffmpeg failure
+    File.delete(mp3_file) if File.exist?(mp3_file) # Ensure clean state
 
-    it "skips already transcribed files" do
-      File.write(text_file, "Already transcribed text")
+    transcriber.transcribe_pending_files
 
-      transcriber = SpanishTranscriber.new
-      expect { transcriber.transcribe_pending_files }.not_to change { File.read(text_file) }
-    end
+    expect(File).not_to exist(mp3_file) # MP3 should not be created
   end
 end

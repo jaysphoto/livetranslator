@@ -1,4 +1,4 @@
-source "https://rubygems.org"
+source 'https://rubygems.org'
 
-gem "ruby-openai"
-gem "rspec"
+gem 'rspec'
+gem 'ruby-openai'

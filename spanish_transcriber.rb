@@ -49,17 +49,18 @@ class SpanishTranscriber
   def process_file(file)
     ext = File.extname(file).downcase
     base_name = File.basename(file, ext)
-    text_file = File.join(@text_dir, "#{base_name}.txt")
+    spanish_file = File.join(@text_dir, "#{base_name}_ES.txt")
+    english_file = File.join(@text_dir, "#{base_name}_EN.txt")
 
-    if File.exist?(text_file)
-      @logger.info("Skipping #{file}, already transcribed.")
+    if File.exist?(english_file) && File.exist?(spanish_file)
+      @logger.info("Skipping #{file}, already transcribed and translated.")
       return
     end
 
     file = convert_mp4_to_mp3(file) if ext == ".mp4"
     return unless file # Skip if conversion failed
 
-    transcribe_then_translate(file, text_file)
+    transcribe_then_translate(file, spanish_file, english_file)
   end
 
   def convert_mp4_to_mp3(mp4_file)
@@ -78,18 +79,20 @@ class SpanishTranscriber
     end
   end
 
-  def transcribe_then_translate(file, text_file)
+  def transcribe_then_translate(file, spanish_file, english_file)
     transcription = transcribe_audio(file)
     return unless transcription
 
-    if @translate_audio
+    # Save Spanish transcription
+    File.write(spanish_file, transcription)
+    @logger.info("Saved Spanish transcription to #{spanish_file}")
+
+    if @translate_audio && !File.exist?(english_file)
       translation = translate_text(transcription)
+      @logger.info("Translation: #{translation}")
       return unless translation
-      File.write(text_file, translation)
-      @logger.info("Saved translation to #{text_file}")
-    else
-      File.write(text_file, transcription)
-      @logger.info("Saved transcription to #{text_file}")
+      File.write(english_file, translation)
+      @logger.info("Saved English translation to #{english_file}")
     end
   end
 
@@ -98,9 +101,22 @@ class SpanishTranscriber
 
     retries = 0
     begin
-      response = @client.audio.transcribe(parameters: { model: "whisper-1", file: File.open(file, "rb") })
-      return response["text"]
-    rescue Faraday::ServerError => e # HTTP 500
+      response = @client.audio.transcribe(
+        parameters: {
+          model: "whisper-1",
+          file: File.open(file, "rb"),
+          response_format: "text"
+        }
+      )
+      @logger.debug("Transcription response: #{response.inspect}")
+
+      if response.nil? || response.empty?
+          @logger.warn("No text transcribed for #{file}.")
+          return nil
+      end
+
+      return response
+    rescue Faraday::ServerError => err # HTTP 500
       if retries < MAX_RETRIES
         delay = RETRY_DELAY**(retries + 1)
         @logger.warn("Server error (500) during transcription of #{file}. Retrying in #{delay} seconds... (Attempt #{retries + 1}/#{MAX_RETRIES})")
@@ -110,10 +126,13 @@ class SpanishTranscriber
       else
         @logger.error("Persistent server error (500) for #{file}. Skipping after #{MAX_RETRIES} retries.")
       end
-    rescue OpenAI::Error => e
-      log_api_error(e, file, "transcription")
-    rescue => e
-      log_generic_error(e, file, "transcription")
+    rescue Faraday::BadRequestError => err
+      @logger.error("Bad request error during transcription: #{err.message}")
+      @logger.error("This usually means the API rejected our request format")
+    rescue OpenAI::Error => err
+      log_api_error(err, file, "transcription")
+    rescue => err
+      log_generic_error(err, file, "transcription")
     end
 
     nil
@@ -124,9 +143,17 @@ class SpanishTranscriber
 
     retries = 0
     begin
-      response = @client.audio.translate(parameters: { model: "whisper-1", file: StringIO.new(text) })
-      return response["text"]
-    rescue Faraday::ServerError => e # HTTP 500
+      response = @client.chat(
+        parameters: {
+          model: "gpt-4",
+          messages: [
+            { role: "system", content: "You are a translator. Translate the following Spanish text to English, maintaining the original meaning and tone." },
+            { role: "user", content: text }
+          ]
+        }
+      )
+      return response.dig("choices", 0, "message", "content")
+    rescue Faraday::ServerError => err # HTTP 500
       if retries < MAX_RETRIES
         delay = RETRY_DELAY**(retries + 1)
         @logger.warn("Server error (500) during translation. Retrying in #{delay} seconds... (Attempt #{retries + 1}/#{MAX_RETRIES})")
@@ -136,10 +163,13 @@ class SpanishTranscriber
       else
         @logger.error("Persistent server error (500) for translation. Skipping after #{MAX_RETRIES} retries.")
       end
-    rescue OpenAI::Error => e
-      log_api_error(e, "text", "translation")
-    rescue => e
-      log_generic_error(e, "text", "translation")
+    rescue Faraday::BadRequestError => err
+      @logger.error("Bad request error during translation: #{err.message}")
+      @logger.error("This usually means the API rejected our request format")
+    rescue OpenAI::Error => err
+      log_api_error(err, "text", "translation")
+    rescue => err
+      log_generic_error(err, "text", "translation")
     end
 
     nil

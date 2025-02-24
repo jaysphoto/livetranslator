@@ -1,5 +1,10 @@
 # Spanish Audio Transcriber
 
+## Setup
+```bash
+bundle install
+```
+
 ## Usage
 1. Place audio files in the `/audio` directory
 2. Receive Spanish transcription and English translation in `/text` directory
@@ -7,11 +12,6 @@
 ## Running the Script (After Setup)
 ```bash
 ruby spanish_transcriber.rb
-```
-
-## Setup
-```bash
-bundle install
 ```
 
 ## Dependencies

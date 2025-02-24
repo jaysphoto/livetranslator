@@ -8,13 +8,19 @@ class SpanishTranscriber
   RETRY_DELAY = 2 # Initial delay in seconds, increases exponentially
 
   def initialize(project_name: "", translate_audio: true)
+    @logger = Logger.new(STDOUT)
+    @logger.level = Logger::DEBUG
     @project_name = project_name.empty? ? "" : "#{project_name}_"
     @audio_dir = "#{@project_name}audio"
     @text_dir = "#{@project_name}text"
     @translate_audio = translate_audio
-    @client = OpenAI::Client.new(access_token: ENV["OPENAI_API_KEY"])
-    @logger = Logger.new(STDOUT)
-    @logger.level = Logger::DEBUG
+    @openapikey = ENV["OPENAI_API_KEY"]
+    if @openapikey
+      @logger.info "OpenAI API key set"
+      @client = OpenAI::Client.new(access_token: @openapikey)
+    else
+      raise Exception.new "Please place your OpenAI API key in the environment at OPENAI_API_KEY"
+    end
 
     FileUtils.mkdir_p(@audio_dir)
     FileUtils.mkdir_p(@text_dir)

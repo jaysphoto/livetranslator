@@ -1,4 +1,5 @@
 .envrc
+.env
 
 # Ignore everything inside the audio and text directories
 audio/*
@@ -7,3 +8,4 @@ text/*
 # Allow the directories themselves
 !audio/
 !text/
+

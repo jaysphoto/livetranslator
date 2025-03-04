@@ -1,11 +1,20 @@
+# Quick run instructions, export OPENAI_API_KEY=""
+# enter irb and run the below
+# require './live_transcriber'
+# stream = "https://rtvelivesrc2.rtve.es/live-origin/24h-hls/bitrate_3.m3u8"
+# lt = LiveTranscriber.new stream
+# lt.start
+
 require 'net/http'
 require 'm3u8'
 require 'openai'
 require 'uri'
 require 'logger'
-require 'tempfile'
+require 'fileutils'
 require 'json'
 require 'time'
+
+require './spanish_transcriber'
 
 class LiveTranscriber  
 
@@ -21,7 +30,11 @@ class LiveTranscriber
       raise Exception.new "Please place your OpenAI API key in the environment at OPENAI_API_KEY"
     end
 
-    @hls_url = stream_url
+    @stream_url = stream_url
+    if @stream_url
+      @logger.info "Stream URL read: #{@stream_url}"
+    end
+
     @running = false
     @segment_buffer = []
     @transcriptions = []
@@ -30,7 +43,7 @@ class LiveTranscriber
 
   def start
     @running = true
-    @logger.info("Starting transcription from: #{@hls_url}")
+    @logger.info("Starting transcription from: #{@stream_url}")
     
     begin
       process_stream
@@ -51,11 +64,11 @@ class LiveTranscriber
   private
 
   def process_stream
-    base_uri = URI(@hls_url)
+    base_uri = URI(@stream_url)
     base_url = "#{base_uri.scheme}://#{base_uri.host}#{File.dirname(base_uri.path)}"
     
     while @running
-      playlist_content = download_content(@hls_url)
+      playlist_content = download_content(@stream_url)
       @logger.info "Playlist Content: #{playlist_content}"
       
       playlist = M3u8::Playlist.read(playlist_content)
@@ -100,7 +113,8 @@ class LiveTranscriber
   end
 
   def process_chunk(audio_data, segment_url)
-    temp_file = Tempfile.new(['audio_segment', '.aac'])
+    FileUtils.mkdir_p('live_audio') unless Dir.exist?('live_audio')
+    temp_file = File.open(File.join('live_audio', "audio_segment_#{Time.now.to_i}.aac"), 'wb')
 
     begin
       temp_file.binmode
@@ -129,14 +143,15 @@ class LiveTranscriber
       return result
     ensure
       temp_file.close
-      temp_file.unlink
+      File.unlink(temp_file.path) rescue nil  # Delete the file, ignore errors if it fails
     end
   end
 
   def transcribe_audio(audio_file_path)
     @logger.info "Transcribe File: #{audio_file_path}"  
-    
-    "Sample transcription"
+    transcription = SpanishTranscriber.new(project_name: "live").transcribe_pending_files
+    # "Sample transcription"
+    transcription
   end
 
 end

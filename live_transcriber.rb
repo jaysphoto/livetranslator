@@ -114,7 +114,8 @@ class LiveTranscriber
 
   def process_chunk(audio_data, segment_url)
     FileUtils.mkdir_p('live_audio') unless Dir.exist?('live_audio')
-    temp_file = File.open(File.join('/tmp', "audio_segment_#{Time.now.to_i}.aac"), 'wb')
+    temp_file = File.open(File.join('live_audio', "audio_segment_#{Time.now.to_i}.aac"), 'wb')
+    # temp_file = File.open(File.join('/tmp', "audio_segment_#{Time.now.to_i}.aac"), 'wb')
 
     begin
       temp_file.binmode
@@ -122,18 +123,22 @@ class LiveTranscriber
       temp_file.flush
       temp_file.rewind
       
-      transcription = transcribe_audio(temp_file.path)
-      
+      unless File.exist?(temp_file.path) && File.size(temp_file.path) > 1024
+        @logger.error("Audio file missing or too small: #{temp_file.path}")
+        raise "Failed to save audio file: #{temp_file.path} (size: #{File.size(temp_file.path) rescue 'unknown'})"
+      else
+        @logger.info("chunk saved at: #{temp_file.path}, size: #{File.size(temp_file.path)}")
+      end
+
+      transcription = transcribe_audio(temp_file.path)      
       if transcription.nil? 
         @logger.info("Is nil")
         return
       end
-
       if transcription.is_a? Array
         @logger.info("Is array, not string: #{transcription}")
         return
       end
-
       if transcription.strip.empty?
         @logger.info("Empty string")
         return
@@ -161,7 +166,8 @@ class LiveTranscriber
   def transcribe_audio(audio_file_path)
     @logger.info "Transcribe File: #{audio_file_path}"  
     transcription = SpanishTranscriber.new(project_name: "live").transcribe_pending_files
-    # "Sample transcription"
+    @logger.info "Transcription: #{transcription}"
+ 
     transcription
   end
 

@@ -3,7 +3,7 @@ require 'openai'
 require 'logger'
 
 class SpanishTranscriber
-  SUPPORTED_AUDIO_FORMATS = %w[mp3 ogg wav mp4].freeze
+  SUPPORTED_AUDIO_FORMATS = %w[mp3 ogg wav mp4 aac].freeze
   MAX_RETRIES = 3
   RETRY_DELAY = 2 # Initial delay in seconds, increases exponentially
 
@@ -102,8 +102,19 @@ class SpanishTranscriber
     end
   end
 
+  def file_properties(file_path)
+    {
+      size_bytes: File.size(file_path),
+      created_at: File.ctime(file_path),
+      path: file_path,
+      filename: File.basename(file_path)
+    }
+  end
+
   def transcribe_audio(file)
     @logger.info("Transcribing #{file}...")
+    properties = file_properties(file)
+    @logger.info("File properties: #{properties.inspect}")
 
     retries = 0
     begin

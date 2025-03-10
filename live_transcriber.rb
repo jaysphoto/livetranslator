@@ -114,7 +114,7 @@ class LiveTranscriber
 
   def process_chunk(audio_data, segment_url)
     FileUtils.mkdir_p('live_audio') unless Dir.exist?('live_audio')
-    temp_file = File.open(File.join('live_audio', "audio_segment_#{Time.now.to_i}.aac"), 'wb')
+    temp_file = File.open(File.join('/tmp', "audio_segment_#{Time.now.to_i}.aac"), 'wb')
 
     begin
       temp_file.binmode
@@ -124,7 +124,18 @@ class LiveTranscriber
       
       transcription = transcribe_audio(temp_file.path)
       
-      if transcription.nil? || transcription.strip.empty?
+      if transcription.nil? 
+        @logger.info("Is nil")
+        return
+      end
+
+      if transcription.is_a? Array
+        @logger.info("Is array, not string: #{transcription}")
+        return
+      end
+
+      if transcription.strip.empty?
+        @logger.info("Empty string")
         return
       end
       

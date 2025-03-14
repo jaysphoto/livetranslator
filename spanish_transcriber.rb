@@ -10,6 +10,7 @@ class SpanishTranscriber
   SUPPORTED_AUDIO_FORMATS = %w[mp3 ogg wav mp4 aac].freeze
   MAX_RETRIES = 3
   RETRY_DELAY = 2 # Initial delay in seconds, increases exponentially
+  OPENAI_WHISPER_FILE_SIZE_LIMIT = 25_000_000 # 25 MB
 
   def initialize(project_name: "", translate_audio: true)
     @logger = Logger.new(STDOUT)
@@ -52,7 +53,12 @@ class SpanishTranscriber
   def valid_audio_file?(file)
     ext = File.extname(file).downcase.delete_prefix('.')
     if SUPPORTED_AUDIO_FORMATS.include?(ext)
-      true
+      if File.size(file) < OPENAI_WHISPER_FILE_SIZE_LIMIT
+        true
+      else
+        @logger.warn("Skipping file #{file} Size=#{File.size(file)} because it exceeds the 25MB file upload limit for OpenAI Whisper.")
+        false
+      end
     else
       @logger.warn("Skipping unsupported file format: #{file}")
       false
@@ -179,6 +185,7 @@ class SpanishTranscriber
     rescue Faraday::BadRequestError => err
       @logger.error("Bad request error during transcription: #{err.message}")
       @logger.error("This usually means the API rejected our request format")
+    rescue Faraday::TooManyRequestsError => err
     rescue OpenAI::Error => err
       log_api_error(err, file, "transcription")
     rescue => err
@@ -217,6 +224,7 @@ class SpanishTranscriber
       @logger.error("Bad request error during translation: #{err.message}")
       @logger.error("This usually means the API rejected our request format")
     rescue OpenAI::Error => err
+    rescue Faraday::TooManyRequestsError => err
       log_api_error(err, "text", "translation")
     rescue => err
       log_generic_error(err, "text", "translation")
@@ -235,6 +243,7 @@ class SpanishTranscriber
     end
 
     @logger.error("❌ Authentication issue: Check your OpenAI API key!") if error.message.include?("401")
+    @logger.error("❌ Rate Limiting issue: Check your OpenAI API remaining credits") if error.response.status == 413
   end
 
   def log_generic_error(error, item, action)

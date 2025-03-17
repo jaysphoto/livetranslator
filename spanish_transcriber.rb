@@ -1,3 +1,7 @@
+# Usage: Run transcriber
+# transcriber = SpanishTranscriber.new
+# transcriber.transcribe_pending_files
+
 require 'fileutils'
 require 'openai'
 require 'logger'
@@ -33,9 +37,12 @@ class SpanishTranscriber
     if audio_files.empty?
       @logger.warn("No audio files found!")
       return
+    else
+      @logger.info("We have #{audio_files.count} audio files to transcribe.")
     end
 
     audio_files.each do |file|
+      @logger.info("Starting processing #{file} audio files to transcribe.")
       process_file(file)
     end
   end
@@ -64,6 +71,8 @@ class SpanishTranscriber
     end
 
     file = convert_mp4_to_mp3(file) if ext == ".mp4"
+    file = convert_aac_to_wav(file) if ext == ".aac"
+    
     return unless file # Skip if conversion failed
 
     transcribe_then_translate(file, spanish_file, english_file)
@@ -81,6 +90,30 @@ class SpanishTranscriber
       mp3_file
     else
       @logger.error("Failed to convert #{mp4_file} to MP3. Is ffmpeg installed?")
+      nil
+    end
+  end
+
+  def convert_aac_to_wav(input_file)
+    output_file = input_file.sub(/\.aac$/, '.wav')
+    begin      
+      # Check if ffmpeg is installed
+      ffmpeg_installed = system("which ffmpeg > /dev/null 2>&1")
+      
+      unless ffmpeg_installed
+        raise "FFmpeg not found. Consider extending SpanishTranscriber.convert_aac_to_wav to use a web API for conversion since local ffmpeg is unavailable."
+      end
+
+      # Use ffmpeg to convert AAC to WAV
+      result = system("ffmpeg -i '#{input_file}' -acodec pcm_s16le -ar 44100 '#{output_file}' 2>/dev/null")
+      
+      unless result
+        raise "FFmpeg conversion failed for #{input_file}"
+      end
+      @logger.info("Conversion successful: #{output_file}")
+      output_file
+    rescue => e
+      @logger.error("Conversion failed: #{e.message}")
       nil
     end
   end
@@ -209,7 +242,3 @@ class SpanishTranscriber
     @logger.debug(error.backtrace.join("\n"))
   end
 end
-
-# Run transcriber
-transcriber = SpanishTranscriber.new
-transcriber.transcribe_pending_files

@@ -65,6 +65,11 @@ RSpec.describe LiveTranscriber do
       allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return(nil)
       expect { LiveTranscriber.new(stream_url) }.to raise_error(Exception, "Please place your OpenAI API key in the environment at OPENAI_API_KEY")
     end
+
+    it "raises an exception if the OpenAI API key is expired" do
+      allow(ENV).to receive(:[]).with("OPENAI_API_KEY").and_return(nil)
+      expect { LiveTranscriber.new(stream_url) }.to raise_error(Exception, "Please put more credit in your OpenAI API environment.")
+    end
     
     it "initializes the OpenAI client if the API key is set" do
       expect(OpenAI::Client).to receive(:new).with(access_token: "mock_api_key")

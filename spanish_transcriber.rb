@@ -3,28 +3,26 @@
 # transcriber.transcribe_pending_files
 
 require 'fileutils'
-require 'openai'
 require 'logger'
+
+require './transcribers/openai'
 
 class SpanishTranscriber
   SUPPORTED_AUDIO_FORMATS = %w[mp3 ogg wav mp4 aac].freeze
-  MAX_RETRIES = 3
-  RETRY_DELAY = 2 # Initial delay in seconds, increases exponentially
-  OPENAI_WHISPER_FILE_SIZE_LIMIT = 25_000_000 # 25 MB
 
-  def initialize(project_name: "", translate_audio: true)
+  def initialize(project_name: '', translate_audio: true)
     @logger = Logger.new(STDOUT)
     @logger.level = Logger::DEBUG
-    @project_name = project_name.empty? ? "" : "#{project_name}_"
+    @project_name = project_name.empty? ? '' : "#{project_name}_"
     @audio_dir = "#{@project_name}audio"
     @text_dir = "#{@project_name}text"
     @translate_audio = translate_audio
-    @openapikey = ENV["OPENAI_API_KEY"]
+    @openapikey = ENV['OPENAI_API_KEY']
     if @openapikey
-      @logger.info "OpenAI API key set"
-      @client = OpenAI::Client.new(access_token: @openapikey)
+      @logger.info 'OpenAI API key set'
+      @transcriber = TranscriberOpenAI.new(@logger, @openapikey)
     else
-      raise Exception.new "Please place your OpenAI API key in the environment at OPENAI_API_KEY"
+      raise Exception.new 'Please place your OpenAI API key in the environment at OPENAI_API_KEY'
     end
 
     FileUtils.mkdir_p(@audio_dir)
@@ -33,10 +31,10 @@ class SpanishTranscriber
 
   def transcribe_pending_files
     @logger.info("Scanning #{@audio_dir} for audio files...")
-    audio_files = Dir.glob(File.join(@audio_dir, "*")).select { |f| valid_audio_file?(f) }
+    audio_files = Dir.glob(File.join(@audio_dir, '*')).select { |f| valid_audio_file?(f) }
 
     if audio_files.empty?
-      @logger.warn("No audio files found!")
+      @logger.warn('No audio files found!')
       return
     else
       @logger.info("We have #{audio_files.count} audio files to transcribe.")
@@ -53,12 +51,7 @@ class SpanishTranscriber
   def valid_audio_file?(file)
     ext = File.extname(file).downcase.delete_prefix('.')
     if SUPPORTED_AUDIO_FORMATS.include?(ext)
-      if File.size(file) < OPENAI_WHISPER_FILE_SIZE_LIMIT
-        true
-      else
-        @logger.warn("Skipping file #{file} Size=#{File.size(file)} because it exceeds the 25MB file upload limit for OpenAI Whisper.")
-        false
-      end
+      true
     else
       @logger.warn("Skipping unsupported file format: #{file}")
       false
@@ -76,8 +69,8 @@ class SpanishTranscriber
       return
     end
 
-    file = convert_mp4_to_mp3(file) if ext == ".mp4"
-    file = convert_aac_to_wav(file) if ext == ".aac"
+    file = convert_mp4_to_mp3(file) if ext == '.mp4'
+    file = convert_aac_to_wav(file) if ext == '.aac'
     
     return unless file # Skip if conversion failed
 
@@ -102,17 +95,17 @@ class SpanishTranscriber
 
   def convert_aac_to_wav(input_file)
     output_file = input_file.sub(/\.aac$/, '.wav')
-    begin      
+    begin
       # Check if ffmpeg is installed
       ffmpeg_installed = system("which ffmpeg > /dev/null 2>&1")
-      
+
       unless ffmpeg_installed
         raise "FFmpeg not found. Consider extending SpanishTranscriber.convert_aac_to_wav to use a web API for conversion since local ffmpeg is unavailable."
       end
 
       # Use ffmpeg to convert AAC to WAV
       result = system("ffmpeg -i '#{input_file}' -acodec pcm_s16le -ar 44100 '#{output_file}' 2>/dev/null")
-      
+
       unless result
         raise "FFmpeg conversion failed for #{input_file}"
       end
@@ -125,7 +118,12 @@ class SpanishTranscriber
   end
 
   def transcribe_then_translate(file, spanish_file, english_file)
-    transcription = transcribe_audio(file)
+    begin
+      transcription = transcribe_audio(file)
+    rescue StandardError => err
+      log_generic_error(err, 'text', 'translation')
+    end
+
     return unless transcription
 
     # Save Spanish transcription
@@ -133,7 +131,7 @@ class SpanishTranscriber
     @logger.info("Saved Spanish transcription to #{spanish_file}")
 
     if @translate_audio && !File.exist?(english_file)
-      translation = translate_text(transcription)
+      translation = @transcriber.translate_text(transcription)
       @logger.info("Translation: #{translation}")
       return unless translation
       File.write(english_file, translation)
@@ -155,99 +153,17 @@ class SpanishTranscriber
     properties = file_properties(file)
     @logger.info("File properties: #{properties.inspect}")
 
-    retries = 0
-    begin
-      response = @client.audio.transcribe(
-        parameters: {
-          model: "whisper-1",
-          file: File.open(file, "rb"),
-          response_format: "text"
-        }
-      )
-      @logger.debug("Transcription response: #{response.inspect}")
-
-      if response.nil? || response.empty?
-          @logger.warn("No text transcribed for #{file}.")
-          return nil
-      end
-
-      return response
-    rescue Faraday::ServerError => err # HTTP 500
-      if retries < MAX_RETRIES
-        delay = RETRY_DELAY**(retries + 1)
-        @logger.warn("Server error (500) during transcription of #{file}. Retrying in #{delay} seconds... (Attempt #{retries + 1}/#{MAX_RETRIES})")
-        sleep(delay)
-        retries += 1
-        retry
-      else
-        @logger.error("Persistent server error (500) for #{file}. Skipping after #{MAX_RETRIES} retries.")
-      end
-    rescue Faraday::BadRequestError => err
-      @logger.error("Bad request error during transcription: #{err.message}")
-      @logger.error("This usually means the API rejected our request format")
-    rescue Faraday::TooManyRequestsError => err
-    rescue OpenAI::Error => err
-      log_api_error(err, file, "transcription")
-    rescue => err
-      log_generic_error(err, file, "transcription")
-    end
-
-    nil
-  end
-
-  def translate_text(text)
-    @logger.info("Translating text...")
-
-    retries = 0
-    begin
-      response = @client.chat(
-        parameters: {
-          model: "gpt-4",
-          messages: [
-            { role: "system", content: "You are a translator. Translate the following Spanish text to English, maintaining the original meaning and tone." },
-            { role: "user", content: text }
-          ]
-        }
-      )
-      return response.dig("choices", 0, "message", "content")
-    rescue Faraday::ServerError => err # HTTP 500
-      if retries < MAX_RETRIES
-        delay = RETRY_DELAY**(retries + 1)
-        @logger.warn("Server error (500) during translation. Retrying in #{delay} seconds... (Attempt #{retries + 1}/#{MAX_RETRIES})")
-        sleep(delay)
-        retries += 1
-        retry
-      else
-        @logger.error("Persistent server error (500) for translation. Skipping after #{MAX_RETRIES} retries.")
-      end
-    rescue Faraday::BadRequestError => err
-      @logger.error("Bad request error during translation: #{err.message}")
-      @logger.error("This usually means the API rejected our request format")
-    rescue OpenAI::Error => err
-    rescue Faraday::TooManyRequestsError => err
-      log_api_error(err, "text", "translation")
-    rescue => err
-      log_generic_error(err, "text", "translation")
-    end
-
-    nil
-  end
-
-  def log_api_error(error, item, action)
-    @logger.error("API Error during #{action} for #{item}: #{error.message}")
-
-    if error.response
-      @logger.error("HTTP Code: #{error.response.status}")
-      @logger.error("Response Headers: #{error.response.headers}")
-      @logger.error("Response Body: #{error.response.body}")
-    end
-
-    @logger.error("❌ Authentication issue: Check your OpenAI API key!") if error.message.include?("401")
-    @logger.error("❌ Rate Limiting issue: Check your OpenAI API remaining credits") if error.response.status == 413
+    @transcriber.transcribe_audio(file)
   end
 
   def log_generic_error(error, item, action)
     @logger.error("Unexpected error during #{action} for #{item}: #{error.class} - #{error.message}")
     @logger.debug(error.backtrace.join("\n"))
   end
+end
+
+if __FILE__ == $PROGRAM_NAME
+  # Run transcriber
+  transcriber = SpanishTranscriber.new
+  transcriber.transcribe_pending_files
 end

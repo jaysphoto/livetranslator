@@ -48,6 +48,7 @@ class LiveTranscriber
     begin
       process_stream
     rescue => err
+    # rescue Faraday::TooManyRequestsError => err, thrown when out of OpenAI credits
       @logger.error("Error: #{err.message}")
       @logger.error(err.backtrace.join("\n"))
     end

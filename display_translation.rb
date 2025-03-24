@@ -1,4 +1,5 @@
 require 'logger'
+require 'listen'
 
 class DisplayTranslation
     def initialize
@@ -15,6 +16,26 @@ class DisplayTranslation
           @logger.info("last file: #{file_text}")
           file_text
         end
+    end
+
+    def follow_live_text(&callback)
+        listener = Listen.to(@live_text_dir) do |modified, added, _removed|
+            added.each do |file|
+              # Process only files ending with _EN.txt
+              if File.basename(file) =~ /_EN\.txt\z/
+                @logger.info("New file detected: #{file}")
+                file_text = File.read(file)
+                callback.call(file_text)
+                stop_watching = true
+                listener.stop
+              end
+            end
+          end
+        listener.start
+        # watch live text for new files to appear
+        # we could poll the dir
+        # we could use a file watcher
+        # callback.call("something")
     end
     
 end

@@ -1,0 +1,20 @@
+def follow_live_text(&callback)
+    stop_watching = false
+    listener = Listen.to(@live_text_dir) do |modified, added, _removed|
+      added.each do |file|
+        # Process only files ending with _EN.txt
+        if File.basename(file) =~ /_EN\.txt\z/
+          @logger.info("New file detected: #{file}")
+          file_text = File.read(file)
+          callback.call(file_text)
+          stop_watching = true
+          listener.stop
+        end
+      end
+    end
+
+    listener.start
+    # Wait until the callback has been triggered (i.e. a file was processed)
+    sleep 0.1 while !stop_watching
+  end
+end

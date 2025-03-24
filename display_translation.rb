@@ -9,7 +9,7 @@ class DisplayTranslation
 
     def display_live_text
         @logger.info("Scanning #{@live_text_dir} for text files...")
-        last_text_file = Dir.glob(File.join(@live_text_dir, '*')).last
+        last_text_file = Dir.glob(File.join(@live_text_dir, '*_EN.txt')).last
         if last_text_file
           file_text = File.open(last_text_file).read
           @logger.info("last file: #{file_text}")

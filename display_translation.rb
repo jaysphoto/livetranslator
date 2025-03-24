@@ -13,6 +13,7 @@ class DisplayTranslation
         if last_text_file
           file_text = File.open(last_text_file).read
           @logger.info("last file: #{file_text}")
+          file_text
         end
     end
     

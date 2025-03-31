@@ -7,3 +7,5 @@ text/*
 # Allow the directories themselves
 !audio/
 !text/
+
+live_text/audio_segment_*.txt

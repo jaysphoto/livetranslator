@@ -9,3 +9,10 @@ text/*
 !audio/
 !text/
 
+# Infrastructure files
+.terraform
+.terraform-version
+.terraform.lock.hcl
+# Ignore all .tfstate files
+*.tfstate
+*.tfstate.backup

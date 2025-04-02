@@ -1,16 +1,14 @@
-FROM ruby:3.2-slim
+FROM ruby:3.2-alpine
 
 # Install system dependencies including FFmpeg
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk update && apk add --no-cache build-base ffmpeg
 
 # Set working directory
 WORKDIR /app
 
 # Copy Gemfile and install dependencies
 COPY Gemfile Gemfile.lock ./
+RUN bundle config set deployment 'true'
 RUN bundle install
 
 # Copy the rest of the application
@@ -25,4 +23,3 @@ ENV TRANSCRIPT_DIR=/app/transcripts
 
 # Command to run the application
 CMD ["ruby", "spanish_transcriber.rb"]
-

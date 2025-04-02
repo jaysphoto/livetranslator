@@ -1,14 +1,13 @@
 source 'https://rubygems.org'
 
-gem 'm3u8', '~> 0.6.9'
-gem 'rspec'
-gem 'ruby-openai'
-gem 'pry'
-
-# for dockerification
-
-gem 'dotenv'
-gem 'httparty'
+gem 'httparty' # for dockerification
 gem 'logger'
-# Add any other dependencies your project uses
+gem 'm3u8', '~> 0.6.9'
+gem 'ruby-openai'
+
+group :development, :test do
+  gem 'dotenv'
+  gem 'pry'
+  gem 'rspec'
+end
 

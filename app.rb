@@ -2,6 +2,11 @@
 require 'sinatra'
 require 'json'
 require './display_translation'
+require 'logger'
+
+# Initialize the logger
+logger = Logger.new(STDOUT)
+logger.level = Logger::INFO
 
 before do
   cache_control :no_cache
@@ -10,8 +15,7 @@ before do
     "Expires" => "0"
 end
 
-get '/' do
-  # cache_control :no_cache
+get '/' do  
   # Changes to the text here require a restart of the Sinatra server (puma)  
   
   @data = {
@@ -19,22 +23,39 @@ get '/' do
   }  
   @data.to_json
 
+  logger.info("Received request for root path")
   erb :index
 end
 
 get '/update' do
-  content_type :json
-  # cache_control :no_cache
+  content_type :json  
   
   last_translated_text = DisplayTranslation.new.display_live_text
+
+  logger.info("LAST: #{last_translated_text}")
 
   data = {
     en_text: last_translated_text
   }
 
-
   data.to_json
 end
+
+# get '/start_rtve' do
+  
+# end 
+
+# get '/stop_rtve' do
+  
+# end 
+
+# get '/new_stream' do
+#   # displays form with cature of new stream and 'project' code of where it is dislayed
+# end
+
+# get '/stop_stream' do
+#   # param is project name i.e. directory
+# end
 
 # Question: What end points are needed?
 # Ideas:

@@ -4,6 +4,7 @@ require 'json'
 require './display_translation'
 
 get '/' do
+  cache_control :no_cache
   # Changes to the text here require a restart of the Sinatra server (puma)  
   
   @data = {
@@ -16,17 +17,15 @@ end
 
 get '/update' do
   content_type :json
+  cache_control :no_cache
   
-  # data = {
-  #   en_text: 'Product Management is one of the main roles in Product, and can often combine, user research, product vision, and technical aspects.'
-  # }
-
   last_translated_text = DisplayTranslation.new.display_live_text
 
   data = {
     en_text: last_translated_text
   }
-  
+
+
   data.to_json
 end
 

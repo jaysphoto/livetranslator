@@ -42,7 +42,12 @@ class LiveTranscriber
     @logger.info("Starting transcription from: #{@stream_url}")
     
     begin
-      process_stream
+      obs_stream = false
+      if obs_stream 
+        process_obs_stream  
+      else
+        process_stream 
+      end
     rescue => err
     # rescue Faraday::TooManyRequestsError => err, thrown when out of OpenAI credits
       @logger.error("Error: #{err.message}")
@@ -59,6 +64,43 @@ class LiveTranscriber
   end
 
   private
+
+  def process_obs_stream
+    base_uri = URI(@stream_url)
+    base_url = "#{base_uri.scheme}://#{base_uri.host}#{File.dirname(base_uri.path)}"
+    
+    while @running
+      playlist_content = download_content(@stream_url)
+      @logger.info "Playlist Content: #{playlist_content}"
+      
+      playlist = M3u8::Playlist.read(playlist_content)
+      @logger.info "Playlist: #{playlist}"
+      
+      segments = playlist.items.select { |item| item.is_a?(M3u8::SegmentItem) }
+      
+      segments.each do |segment|
+        break unless @running
+        
+        segment_url = segment.segment.start_with?('http') ? 
+                      segment.segment : 
+                      "#{base_url}/#{segment.segment}"
+        @logger.info "Segment: #{segment_url}"
+
+        next if @segment_buffer.include?(segment_url)
+        
+        @segment_buffer << segment_url
+        @segment_buffer.shift if @segment_buffer.size > 100
+        
+        segment_data = download_content(segment_url)
+        
+        if segment_data && !segment_data.empty?
+          process_obs_chunk(segment_data, segment_url)
+        end
+      end
+      
+      sleep 2 # Arbituary.
+    end
+  end
 
   def process_stream
     base_uri = URI(@stream_url)
@@ -112,7 +154,6 @@ class LiveTranscriber
   def process_chunk(audio_data, segment_url)
     FileUtils.mkdir_p('live_audio') unless Dir.exist?('live_audio')
     temp_file = File.open(File.join('live_audio', "audio_segment_#{Time.now.to_i}.aac"), 'wb')
-    # temp_file = File.open(File.join('/tmp', "audio_segment_#{Time.now.to_i}.aac"), 'wb')
 
     begin
       temp_file.binmode
@@ -158,6 +199,46 @@ class LiveTranscriber
       temp_file.close
       File.unlink(temp_file.path) rescue nil  # Delete the file, ignore errors if it fails
     end
+  end
+
+  def process_obs_chunk(audio_data, segment_url)
+    FileUtils.mkdir_p('live_audio') unless Dir.exist?('live_audio')
+    audio_file_path = File.join('live_audio', "audio_segment_#{Time.now.to_i}.aac")
+    
+    # Save audio data to a temporary file
+    File.open(audio_file_path, 'wb') do |file|
+      file.binmode
+      file.write(audio_data)
+    end
+
+    # Transcribe audio if needed
+    transcription = transcribe_audio(audio_file_path)
+    if transcription.nil? 
+      @logger.info("Is nil")
+      return
+    end
+    if transcription.is_a? Array
+      @logger.info("Is array, not string: #{transcription}")
+      return
+    end
+    if transcription.strip.empty?
+      @logger.info("Empty string")
+      return
+    end
+    
+    timestamp = Time.now.strftime("%H:%M:%S")
+    @logger.info("#{timestamp} | Transcription: #{transcription}")
+    
+    result = {
+      timestamp: timestamp,
+      segment_url: segment_url,
+      text: transcription
+    }
+    
+    @transcriptions << result
+    @callback.call(result) if @callback
+    
+    return result
   end
 
   def transcribe_audio(audio_file_path)

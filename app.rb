@@ -3,8 +3,15 @@ require 'sinatra'
 require 'json'
 require './display_translation'
 
-get '/' do
+before do
   cache_control :no_cache
+  headers \
+    "Pragma"   => "no-cache",
+    "Expires" => "0"
+end
+
+get '/' do
+  # cache_control :no_cache
   # Changes to the text here require a restart of the Sinatra server (puma)  
   
   @data = {
@@ -17,7 +24,7 @@ end
 
 get '/update' do
   content_type :json
-  cache_control :no_cache
+  # cache_control :no_cache
   
   last_translated_text = DisplayTranslation.new.display_live_text
 

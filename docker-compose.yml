@@ -1,0 +1,10 @@
+services:
+  transcriber:
+    build: .
+    volumes:
+      - ./audio:/app/audio
+      - ./transcripts:/app/transcripts
+    environment:
+      - DEEPL_API_KEY=${DEEPL_API_KEY}
+      - WHISPER_API_KEY=${WHISPER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}

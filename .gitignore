@@ -1,3 +1,4 @@
+.env
 .envrc
 
 # Ignore everything inside the audio and text directories

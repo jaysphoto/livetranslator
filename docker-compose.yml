@@ -1,0 +1,13 @@
+services:
+  sinatra:
+    build: .
+    volumes:
+      - ./audio:/app/audio
+      - ./transcripts:/app/transcripts
+    environment:
+      - DEEPL_API_KEY=${DEEPL_API_KEY}
+      - WHISPER_API_KEY=${WHISPER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - APP_ENV=${APP_ENV:-'production'}
+    ports:
+      - "4567:4567"

@@ -2,8 +2,8 @@ services:
   sinatra:
     build: .
     volumes:
-      - ./audio:/app/audio
-      - ./transcripts:/app/transcripts
+      - ./live_audio:/app/live_audio
+      - ./live_text:/app/live_text
     environment:
       - DEEPL_API_KEY=${DEEPL_API_KEY}
       - WHISPER_API_KEY=${WHISPER_API_KEY}
@@ -11,3 +11,15 @@ services:
       - APP_ENV=${APP_ENV:-'production'}
     ports:
       - "4567:4567"
+  livetranslation:
+    build: .
+    volumes:
+      - ./live_audio:/app/live_audio
+      - ./live_text:/app/live_text
+    environment:
+      - DEEPL_API_KEY=${DEEPL_API_KEY}
+      - WHISPER_API_KEY=${WHISPER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - APP_ENV=${APP_ENV:-'production'}
+    command: "ruby start_rtve_translation.rb"
+    restart: "no"

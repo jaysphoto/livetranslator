@@ -21,8 +21,8 @@ RUN mkdir -p audio transcripts
 
 # Set environment variables
 ENV APP_ENV=production
-ENV AUDIO_DIR=/app/audio
-ENV TRANSCRIPT_DIR=/app/transcripts
+ENV AUDIO_DIR=/app/live_audio
+ENV TRANSCRIPT_DIR=/app/live_text
 
 # Command to run the application
 CMD ["/bin/sh", "-c" , "ruby app.rb"]

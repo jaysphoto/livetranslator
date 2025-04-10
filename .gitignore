@@ -4,9 +4,13 @@
 # Ignore everything inside the audio and text directories
 audio/*
 text/*
+live_audio/*
+live_text/*
 
 # Allow the directories themselves
 !audio/
 !text/
+!live_audio/
+!live_text/
 
 live_text/audio_segment_*.txt

@@ -9,3 +9,4 @@ text/*
 !audio/
 !text/
 
+live_text/audio_segment_*.txt

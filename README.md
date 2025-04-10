@@ -1,22 +1,64 @@
 # Spanish Audio Transcriber
 
+## Configuration
+
+No matter which environment you will need to setup your Open AI API Key.
+
+Create a .env file in the project root directory with the following:
+OPENAI_API_KEY=
+
+Or, export as environment variable.
+i.e. in your terminal:
+export OPENAI_API_KEY=paste your own api key here
+
+## Quick Proof Of Concept Setup
+
+See the rtve live stream, translated, and displayed in a web browser.
+
+And then do:
+`docker compose up`
+
+This will allow you to view the translation live at:
+http://localhost:4567 
+
+Dependencies: 
+- Docker (https://www.docker.com/get-started/)
+- Open AI API Key [https://platform.openai.com/docs/guides/speech-to-text](https://platform.openai.com/api-keys)
+
+## How To Run In Codespaces
+
+GitHub allows you to develop in a web-based IDE, that looks like VSCode.
+From github repo, select the code dropdown, and codespaces. You can then create a new codespace from there.
+The codespace allows you to develop in the cloud with other humans.
+
+## Run The Application Manually
+
 ## Setup
 ```bash
 bundle install
 ```
 
 ## Usage
-1. Place audio files in the `/audio` directory
-2. Receive Spanish transcription and English translation in `/text` directory
-
-## Running the Script (After Setup)
-```bash
-ruby spanish_transcriber.rb
-```
+1. Start the sinatra web server with:
+bundle exec ruby app.rb
+2. Start the demo stream with this script:
+bundle exec ruby start_rtve_translation.rb
+3. Open a web browser at the following address:
+http://localhost:4567
 
 ## Dependencies
 - Valid `OPENAI_API_KEY` set as an environment variable
 - `ffmpeg` installed (required for MP4 to MP3 conversion - not needed if only using MP3/ogg/wav files)
+
+# Transcribing Static Audio
+
+1. Place audio files in the `/audio` directory
+2. Receive Spanish transcription and English translation in `/text` directory
+
+## Running the static translator
+```bash
+ruby spanish_transcriber.rb
+```
 
 ## Features
 - Processes MP3, OGG, and MP4 files

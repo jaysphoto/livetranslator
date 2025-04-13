@@ -1,9 +1,11 @@
 FROM ruby:3.2-slim
 
 # Install system dependencies including FFmpeg
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    build-essential \
+RUN apt-get update \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ffmpeg \
+        build-essential \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -17,7 +19,7 @@ RUN bundle install
 COPY . .
 
 # Create directories for audio files and transcripts
-RUN mkdir -p audio transcripts
+RUN mkdir audio transcripts live_audio live_text
 
 # Set environment variables
 ENV APP_ENV=production

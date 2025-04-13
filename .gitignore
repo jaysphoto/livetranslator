@@ -1,3 +1,4 @@
+.bundle
 .env
 .envrc
 
@@ -12,5 +13,3 @@ live_text/*
 !text/
 !live_audio/
 !live_text/
-
-live_text/audio_segment_*.txt

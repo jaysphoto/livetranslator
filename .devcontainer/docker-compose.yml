@@ -1,0 +1,23 @@
+services:
+  devcontainer: &devcontainer
+    build:
+      context: ..
+    volumes:
+      - ../live_audio:/app/live_audio
+      - ../live_text:/app/live_text
+    environment:
+      - DEEPL_API_KEY=${DEEPL_API_KEY}
+      - WHISPER_API_KEY=${WHISPER_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - APP_ENV=${APP_ENV:-'production'}
+    command: sleep infinity
+
+  sinatra:
+    <<: *devcontainer
+    ports:
+      - "4567:4567"
+    command: ["ruby", "app.rb"]
+  livetranslation:
+    <<: *devcontainer
+    command: ["ruby", "start_rtve_translation.rb"]
+    restart: "no"

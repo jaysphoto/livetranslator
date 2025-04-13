@@ -1,12 +1,28 @@
-FROM ruby:3.2-slim
+ARG BUILD_FROM="ruby:3.2-slim"
+FROM ${BUILD_FROM}
+
+# Needs to be redefined inside the FROM statement to be set for RUN commands
+ARG BUILD_FROM
 
 # Install system dependencies including FFmpeg
-RUN apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        ffmpeg \
-        build-essential \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+RUN case "$BUILD_FROM" in \
+        *-alpine) \
+            # Alpine linux based image \
+            apk update && \
+            apk add --no-cache \
+                build-base \
+                ffmpeg \
+        ;; \
+        *) \
+            # Debian based image \
+            apt-get update \
+            && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                ffmpeg \
+                build-essential \
+            && apt-get clean \
+            && rm -rf /var/lib/apt/lists/* \
+        ;; \
+    esac
 
 # Set working directory
 WORKDIR /app
@@ -28,4 +44,3 @@ ENV TRANSCRIPT_DIR=/app/live_text
 
 # Command to run the application
 CMD ["/bin/sh", "-c" , "ruby app.rb"]
-

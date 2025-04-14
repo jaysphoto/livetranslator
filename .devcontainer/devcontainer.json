@@ -32,7 +32,8 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"ms-vsliveshare.vsliveshare"
+				"ms-vsliveshare.vsliveshare",
+				"rubocop.vscode-rubocop"
 			]
 		}
 	}

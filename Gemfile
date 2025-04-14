@@ -15,4 +15,5 @@ group :development, :test do
   gem 'dotenv'
   gem 'pry'
   gem 'rspec'
+  gem 'rubocop'
 end

@@ -46,8 +46,6 @@ class SpanishTranscriber
     end
   end
 
-  private
-
   def valid_audio_file?(file)
     ext = File.extname(file).downcase.delete_prefix('.')
     if SUPPORTED_AUDIO_FORMATS.include?(ext)
@@ -71,11 +69,13 @@ class SpanishTranscriber
 
     file = convert_mp4_to_mp3(file) if ext == '.mp4'
     file = convert_aac_to_wav(file) if ext == '.aac'
-    
+
     return unless file # Skip if conversion failed
 
     transcribe_then_translate(file, spanish_file, english_file)
   end
+
+  private
 
   def convert_mp4_to_mp3(mp4_file)
     mp3_file = mp4_file.sub(/\.mp4$/, '.mp3')

@@ -35,7 +35,6 @@ Or, use ffmpeg to pull and direct an example stream (RTVe here) to livetranslati
 
 `ffmpeg -analyzeduration 0 -i 'https://rtvelivesrc2.rtve.es/live-origin/24h-hls/bitrate_3.m3u8' -f flv rtmp://localhost:1935/stream/hello`
 
-
 Dependencies: 
 - Docker (https://www.docker.com/get-started/)
 - Open AI API Key [https://platform.openai.com/docs/guides/speech-to-text](https://platform.openai.com/api-keys)

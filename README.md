@@ -5,21 +5,36 @@
 No matter which environment you will need to setup your Open AI API Key.
 
 Create a .env file in the project root directory with the following:
-OPENAI_API_KEY=
+```
+OPENAI_API_KEY=<paste your own api key here>
+STREAM_KEY_NAME=hello
+```
 
 Or, export as environment variable.
 i.e. in your terminal:
-export OPENAI_API_KEY=paste your own api key here
+
+```
+export OPENAI_API_KEY=<paste your own api key here>
+export STREAM_KEY_NAME=hello
+```
 
 ## Quick Proof Of Concept Setup
 
 See the rtve live stream, translated, and displayed in a web browser.
 
-And then do:
+Bring up the development stack by issuing the docker compose command:
+
 `docker compose up`
 
-This will allow you to view the translation live at:
+This will allow you to view the translations live at:
 http://localhost:4567 
+
+Either point a local broadcast tool (for example [OBS Studio](https://obsproject.com/) at the endpoint: `rtmp://localhost:1935/stream` and set the stream key name.
+
+Or, use ffmpeg to pull and direct an example stream (RTVe here) to livetranslation RTMP endpoint:
+
+`ffmpeg -analyzeduration 0 -i 'https://rtvelivesrc2.rtve.es/live-origin/24h-hls/bitrate_3.m3u8' -f flv rtmp://localhost:1935/stream/hello`
+
 
 Dependencies: 
 - Docker (https://www.docker.com/get-started/)
@@ -59,6 +74,11 @@ http://localhost:4567
 ```bash
 ruby spanish_transcriber.rb
 ```
+
+## OBS Configuration
+- Stream Type: Custom Streaming Server
+- URL: `rtmp://localhost:1935/stream`
+- Stream Key: `<stream key name>`
 
 ## Features
 - Processes MP3, OGG, and MP4 files

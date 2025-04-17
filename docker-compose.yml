@@ -22,7 +22,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - APP_ENV=${APP_ENV:-'production'}
     entrypoint: ["ruby", "start_rtve_translation.rb", "http://livestream:80/live/hello_720p2628kbs/index.m3u8"]
-    restart: "no"
+    restart: "always"
     depends_on:
       livestream:
         condition: service_healthy

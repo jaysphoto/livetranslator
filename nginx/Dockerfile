@@ -19,7 +19,7 @@ RUN apt-get update \
 
 # Add NGINX path, config and static files.
 COPY nginx.conf /etc/nginx/nginx.conf.template
-RUN mkdir -p /opt/data && mkdir /www
+RUN mkdir -p /opt/data /www
 COPY static /www/static
 
 EXPOSE 1935

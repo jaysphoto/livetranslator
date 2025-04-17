@@ -12,24 +12,19 @@ require 'time'
 
 require './spanish_transcriber'
 
-class LiveTranscriber  
-
+class LiveTranscriber
   def initialize(stream_url)
     @logger = Logger.new(STDOUT)
     @logger.level = Logger::INFO
 
-    @openapikey = ENV["OPENAI_API_KEY"]
-    if @openapikey
-      @logger.info "OpenAI API key read"
-      @client = OpenAI::Client.new(access_token: @openapikey)
-    else
-      raise Exception.new "Please place your OpenAI API key in the environment at OPENAI_API_KEY"
-    end
+    @openapikey = ENV.fetch('OPENAI_API_KEY', nil)
+    raise Exception.new 'Please place your OpenAI API key in the environment at OPENAI_API_KEY' unless @openapikey
+
+    @logger.info 'OpenAI API key read'
+    @client = OpenAI::Client.new(access_token: @openapikey)
 
     @stream_url = stream_url
-    if @stream_url
-      @logger.info "Stream URL read: #{@stream_url}"
-    end
+    @logger.info "Stream URL read: #{@stream_url}" if @stream_url
 
     @running = false
     @segment_buffer = []
@@ -40,25 +35,25 @@ class LiveTranscriber
   def start
     @running = true
     @logger.info("Starting transcription from: #{@stream_url}")
-    
+
     begin
       obs_stream = false
-      if obs_stream 
-        process_obs_stream  
+      if obs_stream
+        process_obs_stream
       else
-        process_stream 
+        process_stream
       end
-    rescue => err
-    # rescue Faraday::TooManyRequestsError => err, thrown when out of OpenAI credits
-      @logger.error("Error: #{err.message}")
-      @logger.error(err.backtrace.join("\n"))
+    rescue StandardError => e
+      # rescue Faraday::TooManyRequestsError => err, thrown when out of OpenAI credits
+      @logger.error("Error: #{e.message}")
+      @logger.error(e.backtrace.join("\n"))
     end
   end
 
   def stop
     @running = false
   end
-  
+
   def on_transcription(&block)
     @callback = block
   end
@@ -68,73 +63,73 @@ class LiveTranscriber
   def process_obs_stream
     base_uri = URI(@stream_url)
     base_url = "#{base_uri.scheme}://#{base_uri.host}#{File.dirname(base_uri.path)}"
-    
+
     while @running
       playlist_content = download_content(@stream_url)
       @logger.info "Playlist Content: #{playlist_content}"
-      
+
       playlist = M3u8::Playlist.read(playlist_content)
       @logger.info "Playlist: #{playlist}"
-      
+
       segments = playlist.items.select { |item| item.is_a?(M3u8::SegmentItem) }
-      
+
       segments.each do |segment|
         break unless @running
-        
-        segment_url = segment.segment.start_with?('http') ? 
-                      segment.segment : 
-                      "#{base_url}/#{segment.segment}"
+
+        segment_url = if segment.segment.start_with?('http')
+                        segment.segment
+                      else
+                        "#{base_url}/#{segment.segment}"
+                      end
         @logger.info "Segment: #{segment_url}"
 
         next if @segment_buffer.include?(segment_url)
-        
+
         @segment_buffer << segment_url
         @segment_buffer.shift if @segment_buffer.size > 100
-        
+
         segment_data = download_content(segment_url)
-        
-        if segment_data && !segment_data.empty?
-          process_obs_chunk(segment_data, segment_url)
-        end
+
+        process_obs_chunk(segment_data, segment_url) if segment_data && !segment_data.empty?
       end
-      
+
       sleep 2 # Arbituary.
     end
   end
 
   def process_stream
     base_uri = URI(@stream_url)
-    base_url = "#{base_uri.scheme}://#{base_uri.host}#{File.dirname(base_uri.path)}"
-    
+    base_url = "#{base_uri.scheme}://#{base_uri.host}:#{base_uri.port}#{File.dirname(base_uri.path)}"
+
     while @running
       playlist_content = download_content(@stream_url)
       @logger.info "Playlist Content: #{playlist_content}"
-      
+
       playlist = M3u8::Playlist.read(playlist_content)
       @logger.info "Playlist: #{playlist}"
-      
+
       segments = playlist.items.select { |item| item.is_a?(M3u8::SegmentItem) }
-      
+
       segments.each do |segment|
         break unless @running
-        
-        segment_url = segment.segment.start_with?('http') ? 
-                      segment.segment : 
-                      "#{base_url}/#{segment.segment}"
+
+        segment_url = if segment.segment.start_with?('http')
+                        segment.segment
+                      else
+                        "#{base_url}/#{segment.segment}"
+                      end
         @logger.info "Segment: #{segment_url}"
 
         next if @segment_buffer.include?(segment_url)
-        
+
         @segment_buffer << segment_url
         @segment_buffer.shift if @segment_buffer.size > 100
-        
+
         segment_data = download_content(segment_url)
-        
-        if segment_data && !segment_data.empty?
-          process_chunk(segment_data, segment_url)
-        end
+
+        process_chunk(segment_data, segment_url) if segment_data && !segment_data.empty?
       end
-      
+
       sleep 2 # seems a bit arbitary
     end
   end
@@ -142,7 +137,7 @@ class LiveTranscriber
   def download_content(url)
     uri = URI(url)
     response = Net::HTTP.get_response(uri)
-    
+
     if response.is_a?(Net::HTTPSuccess)
       response.body
     else
@@ -160,17 +155,21 @@ class LiveTranscriber
       temp_file.write(audio_data)
       temp_file.flush
       temp_file.rewind
-      
-      unless File.exist?(temp_file.path) && File.size(temp_file.path) > 1024
-        @logger.error("Audio file missing or too small: #{temp_file.path}")
-        raise "Failed to save audio file: #{temp_file.path} (size: #{File.size(temp_file.path) rescue 'unknown'})"
-      else
+
+      if File.exist?(temp_file.path) && File.size(temp_file.path) > 1024
         @logger.info("chunk saved at: #{temp_file.path}, size: #{File.size(temp_file.path)}")
+      else
+        @logger.error("Audio file missing or too small: #{temp_file.path}")
+        raise "Failed to save audio file: #{temp_file.path} (size: #{begin
+          File.size(temp_file.path)
+        rescue StandardError
+          'unknown'
+        end})"
       end
 
-      transcription = transcribe_audio(temp_file.path)      
-      if transcription.nil? 
-        @logger.info("Is nil")
+      transcription = transcribe_audio(temp_file.path)
+      if transcription.nil?
+        @logger.info('Is nil')
         return
       end
       if transcription.is_a? Array
@@ -178,33 +177,37 @@ class LiveTranscriber
         return
       end
       if transcription.strip.empty?
-        @logger.info("Empty string")
+        @logger.info('Empty string')
         return
       end
-      
-      timestamp = Time.now.strftime("%H:%M:%S")
+
+      timestamp = Time.now.strftime('%H:%M:%S')
       @logger.info("#{timestamp} | Transcription: #{transcription}")
-      
+
       result = {
         timestamp: timestamp,
         segment_url: segment_url,
         text: transcription
       }
-      
+
       @transcriptions << result
       @callback.call(result) if @callback
-      
-      return result
+
+      result
     ensure
       temp_file.close
-      File.unlink(temp_file.path) rescue nil  # Delete the file, ignore errors if it fails
+      begin
+        File.unlink(temp_file.path)
+      rescue StandardError
+        nil
+      end # Delete the file, ignore errors if it fails
     end
   end
 
   def process_obs_chunk(audio_data, segment_url)
     FileUtils.mkdir_p('live_audio') unless Dir.exist?('live_audio')
     audio_file_path = File.join('live_audio', "audio_segment_#{Time.now.to_i}.aac")
-    
+
     # Save audio data to a temporary file
     File.open(audio_file_path, 'wb') do |file|
       file.binmode
@@ -213,8 +216,8 @@ class LiveTranscriber
 
     # Transcribe audio if needed
     transcription = transcribe_audio(audio_file_path)
-    if transcription.nil? 
-      @logger.info("Is nil")
+    if transcription.nil?
+      @logger.info('Is nil')
       return
     end
     if transcription.is_a? Array
@@ -222,31 +225,30 @@ class LiveTranscriber
       return
     end
     if transcription.strip.empty?
-      @logger.info("Empty string")
+      @logger.info('Empty string')
       return
     end
-    
-    timestamp = Time.now.strftime("%H:%M:%S")
+
+    timestamp = Time.now.strftime('%H:%M:%S')
     @logger.info("#{timestamp} | Transcription: #{transcription}")
-    
+
     result = {
       timestamp: timestamp,
       segment_url: segment_url,
       text: transcription
     }
-    
+
     @transcriptions << result
     @callback.call(result) if @callback
-    
-    return result
+
+    result
   end
 
   def transcribe_audio(audio_file_path)
-    @logger.info "Transcribe File: #{audio_file_path}"  
-    transcription = SpanishTranscriber.new(project_name: "live").transcribe_pending_files
+    @logger.info "Transcribe File: #{audio_file_path}"
+    transcription = SpanishTranscriber.new(project_name: 'live').transcribe_pending_files
     @logger.info "Transcription: #{transcription}"
- 
+
     transcription
   end
-
 end

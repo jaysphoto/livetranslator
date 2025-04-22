@@ -92,14 +92,11 @@ class LiveTranscriber
       @logger.info "Playlist: #{playlist}"
 
       segments = playlist.items.select { |item| item.is_a?(M3u8::SegmentItem) }
-
       segments.each do |segment|
-        break unless @running
-
         segment_url = if segment.segment.start_with?('http')
                         segment.segment
                       else
-                        "#{base_url}/#{segment.segment}"
+                        "#{base_url}#{segment.segment}"
                       end
         @logger.info "Segment: #{segment_url}"
 
@@ -112,6 +109,8 @@ class LiveTranscriber
 
         process_chunk(segment_data, segment_url) if segment_data && !segment_data.empty?
       end
+
+      break unless @running
 
       sleep 2 # seems a bit arbitary
     end

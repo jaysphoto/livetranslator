@@ -24,4 +24,3 @@ services:
       - ./live_audio:/opt/data/live_audio
     ports:
       - "1935:1935"
-      - "8080:80"

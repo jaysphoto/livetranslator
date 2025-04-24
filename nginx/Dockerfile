@@ -3,8 +3,6 @@
 FROM debian:bookworm-slim
 
 # Set default ports.
-ENV HTTP_PORT 80
-ENV HTTPS_PORT 443
 ENV RTMP_PORT 1935
 
 RUN apt-get update \
@@ -19,10 +17,9 @@ RUN apt-get update \
 
 # Add NGINX path, config and static files.
 COPY nginx.conf /etc/nginx/nginx.conf.template
-RUN mkdir -p /opt/data /www/static
+RUN mkdir -p /opt/data
 
 EXPOSE 1935
-EXPOSE 80
 
 CMD envsubst "$(env | sed -e 's/=.*//' -e 's/^/\$/g')" < \
   /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && \

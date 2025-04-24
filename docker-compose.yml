@@ -17,7 +17,7 @@ services:
       - DEEPL_API_KEY=${DEEPL_API_KEY}
       - WHISPER_API_KEY=${WHISPER_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-    entrypoint: ["ruby", "live_transcriber.rb"]
+    entrypoint: ["/bin/sh", "-c", "ruby live_transcriber.rb"]
   livestream:
     build: nginx
     volumes:

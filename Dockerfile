@@ -25,5 +25,4 @@ ENV AUDIO_DIR=/app/live_audio
 ENV TRANSCRIPT_DIR=/app/live_text
 
 # Command to run the application
-CMD ["/bin/sh", "-c" , "ruby app.rb"]
-
+ENTRYPOINT ["/bin/sh", "-c" , "ruby app.rb"]

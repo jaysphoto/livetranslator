@@ -15,7 +15,8 @@ require './spanish_transcriber'
 
 class LiveTranscriber
   def initialize(stream_url = nil)
-    @logger = Logger.new(STDOUT)
+    $stdout.sync = true
+    @logger = Logger.new($stdout)
     @logger.level = Logger::INFO
     @obs_stream = true
     @transcriber = SpanishTranscriber.new(project_name: 'live', logger: @logger)

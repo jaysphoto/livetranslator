@@ -3,8 +3,8 @@
 FROM debian:bookworm-slim
 
 # Default Nginx configuration values.
-ENV RTMP_PORT 1935
-ENV STREAM_KEY_NAME "{STREAM_KEY_NAME:-live}"
+ENV RTMP_PORT=1935
+ENV STREAM_KEY_NAME="${STREAM_KEY_NAME:-live}"
 
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \

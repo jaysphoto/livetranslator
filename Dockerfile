@@ -24,5 +24,5 @@ ENV APP_ENV=production
 ENV AUDIO_DIR=/app/live_audio
 ENV TRANSCRIPT_DIR=/app/live_text
 
-# Command to run the application
-ENTRYPOINT ["/bin/sh", "-c" , "ruby app.rb"]
+# Entrypoint and command to run the web application
+CMD ["ruby", "app.rb"]

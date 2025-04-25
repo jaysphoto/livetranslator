@@ -11,18 +11,16 @@ services:
   livetranslation:
     build: .
     environment:
-      - DEEPL_API_KEY=${DEEPL_API_KEY}
-      - WHISPER_API_KEY=${WHISPER_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-    entrypoint: ["/bin/sh", "-c", "ruby live_transcriber.rb"]
     volumes:
       - ./live_audio:/app/live_audio
       - ./live_text:/app/live_text
+    command: ["ruby", "live_transcriber.rb"]
   livestream:
     build: nginx
     environment:
-      - STREAM_KEY_NAME=${STREAM_KEY_NAME:-'live'}
+      - STREAM_KEY_NAME=${STREAM_KEY_NAME}
     ports:
-      - "${RTMP_PORT}:1935"
+      - "${RTMP_PORT:-1935}:1935"
     volumes:
       - ./live_audio:/opt/data/live_audio

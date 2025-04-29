@@ -10,15 +10,20 @@ require './transcribers/openai'
 class SpanishTranscriber
   SUPPORTED_AUDIO_FORMATS = %w[mp3 ogg wav mp4 aac].freeze
 
-  def initialize(project_name: '', translate_audio: true)
-    @logger = Logger.new(STDOUT)
-    @logger.level = Logger::DEBUG
+  def initialize(project_name: '', translate_audio: true, logger: nil)
+    if logger.instance_of?(Logger)
+      @logger = logger
+    else
+      @logger = Logger.new(STDOUT)
+      @logger.level = Logger::DEBUG
+    end
+
     @project_name = project_name.empty? ? '' : "#{project_name}_"
     @audio_dir = "#{@project_name}audio"
     @text_dir = "#{@project_name}text"
     @translate_audio = translate_audio
     @openapikey = ENV['OPENAI_API_KEY']
-    if @openapikey
+    if @openapikey && !@openapikey.empty?
       @logger.info 'OpenAI API key set'
       @transcriber = TranscriberOpenAI.new(@logger, @openapikey)
     else
@@ -46,8 +51,6 @@ class SpanishTranscriber
     end
   end
 
-  private
-
   def valid_audio_file?(file)
     ext = File.extname(file).downcase.delete_prefix('.')
     if SUPPORTED_AUDIO_FORMATS.include?(ext)
@@ -71,11 +74,13 @@ class SpanishTranscriber
 
     file = convert_mp4_to_mp3(file) if ext == '.mp4'
     file = convert_aac_to_wav(file) if ext == '.aac'
-    
+
     return unless file # Skip if conversion failed
 
     transcribe_then_translate(file, spanish_file, english_file)
   end
+
+  private
 
   def convert_mp4_to_mp3(mp4_file)
     mp3_file = mp4_file.sub(/\.mp4$/, '.mp3')

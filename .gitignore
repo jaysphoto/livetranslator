@@ -11,5 +11,5 @@ live_text/*
 # Allow the directories themselves
 !audio/
 !text/
-!live_audio/
-!live_text/
+!live_audio/README
+!live_text/README

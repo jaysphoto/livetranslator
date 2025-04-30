@@ -14,37 +14,35 @@ require 'time'
 require './spanish_transcriber'
 
 class LiveTranscriber
-  def initialize(stream_url = nil)
+  def initialize(stream_uri = nil)
     $stdout.sync = true
     @logger = Logger.new($stdout)
     @logger.level = Logger::INFO
-    @obs_stream = true
+    @source = if stream_uri.nil?
+                require './lib/streams/filesystem'
+                Streams::Filesystem.new
+              else
+                require './lib/streams/hls'
+                Streams::HLS.new stream_uri
+              end
     @transcriber = SpanishTranscriber.new(project_name: 'live', logger: @logger)
-
-    if stream_url
-      @stream_url = stream_url
-      @logger.info "Stream URL read: #{@stream_url}" if @stream_url
-      @obs_stream = false
-    end
-
-    @running = false
-    @segment_buffer = []
     @transcriptions = []
     @callback = nil
+
+    @running = false
   end
 
   def start
     @running = true
 
-    begin
-      if @obs_stream
-        process_local_stream
-      else
-        process_stream_from_url
+    while @running
+      begin
+        process
+        sleep 2 # seems a bit arbitary
+      rescue StandardError => e
+        @logger.error("Error: #{e.message}")
+        @logger.error(e.backtrace.join("\n"))
       end
-    rescue StandardError => e
-      @logger.error("Error: #{e.message}")
-      @logger.error(e.backtrace.join("\n"))
     end
   end
 
@@ -77,59 +75,6 @@ class LiveTranscriber
         @logger.info("New file detected: #{file}")
         handle_transcription(transcribe_audio(file), file)
       end
-    end
-  end
-
-  def process_stream_from_url
-    @logger.info("Starting transcription from: #{@stream_url}")
-
-    base_uri = URI(@stream_url)
-    base_url = "#{base_uri.scheme}://#{base_uri.host}:#{base_uri.port}#{File.dirname(base_uri.path)}"
-
-    while @running
-      playlist_content = download_content(@stream_url)
-      @logger.info "Playlist Content: #{playlist_content}"
-
-      playlist = M3u8::Playlist.read(playlist_content)
-      @logger.info "Playlist: #{playlist}"
-
-      process_playlist(playlist.items, base_url)
-
-      break unless @running
-
-      sleep 2 # seems a bit arbitary
-    end
-  end
-
-  def process_playlist(playlist_items, base_url)
-    segments = playlist_items.select { |item| item.is_a?(M3u8::SegmentItem) }
-    segments.each do |segment|
-      segment_url = (segment.segment.start_with?('http') ? segment.segment : "#{base_url}/#{segment.segment}")
-      next if @segment_buffer.include?(segment_url)
-
-      segment_data = download_segment(segment_url)
-      process_chunk(segment_data, segment_url) if segment_data && !segment_data.empty?
-    end
-  end
-
-  def download_segment(segment_uri)
-    @logger.info "Segment: #{segment_uri}"
-
-    @segment_buffer << segment_uri
-    @segment_buffer.shift if @segment_buffer.size > 100
-
-    download_content(segment_uri)
-  end
-
-  def download_content(url)
-    uri = URI(url)
-    response = Net::HTTP.get_response(uri)
-
-    if response.is_a?(Net::HTTPSuccess)
-      response.body
-    else
-      @logger.error("Failed to download: #{url}: #{response.code}")
-      nil
     end
   end
 

@@ -10,7 +10,7 @@ class SpanishTranscriber
   SUPPORTED_AUDIO_FORMATS = %w[mp3 ogg wav mp4 aac].freeze
 
   def initialize(project_name: nil, translate_audio: true, logger: nil)
-    raise TranscriberError, "Provide a valid Logger instance: #{logger}" unless logger.is_a?(Logger)
+    raise TranscriberError, "Provide a valid Logger instance: #{logger.inspect}" unless logger.is_a?(Logger)
 
     @logger = logger
     @translate_audio = translate_audio

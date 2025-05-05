@@ -1,5 +1,6 @@
 require 'openai'
 
+# This class handles the transcription and translation of audio files using OpenAI's Whisper API.
 class TranscriberOpenAI
   MAX_RETRIES = 3
   RETRY_DELAY = 2 # Initial delay in seconds, increases exponentially
@@ -18,92 +19,106 @@ class TranscriberOpenAI
     end
 
     @logger.info("Transcribing #{file}...")
-
-    retries = 0
-    begin
-      response = @client.audio.transcribe(
-        parameters: {
-          model: 'whisper-1',
-          file: File.open(file, 'rb'),
-          response_format: 'text'
-        }
-      )
-      @logger.debug("Transcription response: #{response.inspect}")
-
-      if response.nil? || response.empty?
-        @logger.warn("No text transcribed for #{file}.")
-        return nil
-      end
-
-      return response
-    rescue Faraday::ServerError => e # HTTP 500
-      if retries < MAX_RETRIES
-        delay = RETRY_DELAY**(retries + 1)
-        @logger.warn("Server error (500) during transcription of #{file}. Retrying in #{delay} seconds... (Attempt #{retries + 1}/#{MAX_RETRIES})")
-        sleep(delay)
-        retries += 1
-        retry
-      else
-        @logger.error("Persistent server error (500) for #{file}. Skipping after #{MAX_RETRIES} retries.")
-      end
-    rescue Faraday::BadRequestError => e
-      @logger.error("Bad request error during transcription: #{e.message}")
-      @logger.error('This usually means the API rejected our request format')
-    rescue Faraday::TooManyRequestsError => e
-      log_api_error(e, file, 'transcription')
-    rescue OpenAI::Error => e
-      log_api_error(e, file, 'transcription')
-    end
-    nil
+    safe_api_call("transcription of #{file}") { api_call_audio_transcribe(file) }
   end
 
   def translate_text(text)
     @logger.info('Translating text...')
-
-    retries = 0
-    begin
-      response = @client.chat(
-        parameters: {
-          model: 'gpt-4',
-          messages: [
-            { role: 'system',
-              content: 'You are a translator. Translate the following Spanish text to English, maintaining the original meaning and tone.' },
-            { role: 'user', content: text }
-          ]
-        }
-      )
-      return response.dig('choices', 0, 'message', 'content')
-    rescue Faraday::ServerError => e # HTTP 500
-      if retries < MAX_RETRIES
-        delay = RETRY_DELAY**(retries + 1)
-        @logger.warn("Server error (500) during translation. Retrying in #{delay} seconds... (Attempt #{retries + 1}/#{MAX_RETRIES})")
-        sleep(delay)
-        retries += 1
-        retry
-      else
-        @logger.error("Persistent server error (500) for translation. Skipping after #{MAX_RETRIES} retries.")
-      end
-    rescue Faraday::BadRequestError => e
-      @logger.error("Bad request error during translation: #{e.message}")
-      @logger.error('This usually means the API rejected our request format')
-    rescue OpenAI::Error => e
-    rescue Faraday::TooManyRequestsError => e
-      log_api_error(e, 'text', 'translation')
-    end
-
-    nil
+    safe_api_call('translate text') { api_call_translate_text(text) }
   end
 
-  def log_api_error(error, item, action)
-    @logger.error("API Error during #{action} for #{item}: #{error.message}")
+  private
 
-    if error.response
-      @logger.debug("Response Headers: #{error.response[:headers]}")
-      @logger.debug("Response Status Code: #{error.response[:status]}")
-      @logger.debug("Response Body: #{error.response[:body]}")
+  def safe_api_call(action, &)
+    @last_api_call = action
+    @last_api_response = nil
+    api_call_with_retry(MAX_RETRIES, &)
+    @last_api_response
+  rescue Faraday::BadRequestError => e
+    log_api_error(e, 'Bad Request', 'This usually means the API rejected our request format')
+  rescue Faraday::TooManyRequestsError => e
+    log_api_error(e, 'TooManyRequests')
+  rescue OpenAI::Error => e
+    log_api_error(e, 'OpenAI')
+  end
+
+  def api_call_with_retry(max_retries, &block)
+    retries = 0
+    begin
+      handle_response yield block
+    rescue Faraday::ServerError # HTTP 500
+      if (retries += 1) < max_retries
+        server_error_delay_and_retry(retries)
+        retry
+      end
+
+      @logger.error("Persistent server error (500) for #{@last_api_call}. Skipping after #{max_retries} retries.")
     end
+  end
+
+  def api_call_audio_transcribe(file)
+    @client.audio.transcribe(
+      parameters: {
+        model: 'whisper-1',
+        file: File.open(file, 'rb'),
+        response_format: 'text'
+      }
+    )
+  end
+
+  def api_call_translate_text(text)
+    response = @client.chat(
+      parameters: {
+        model: 'gpt-4',
+        messages: translate_text_roles(text)
+      }
+    )
+    response.dig('choices', 0, 'message', 'content')
+  end
+
+  def translate_text_roles(text)
+    [
+      { role: 'system',
+        content: 'You are a translator. Translate the following Spanish text to English, ' \
+                 'maintaining the original meaning and tone.' },
+      { role: 'user', content: text }
+    ]
+  end
+
+  def handle_response(response)
+    @logger.debug("OpenAI API response for #{@last_api_call}: #{response.inspect}")
+
+    if response.nil? || response.empty?
+      @logger.warn("No response for #{@last_api_call}.")
+      return nil
+    end
+
+    @last_api_response = response
+  end
+
+  def server_error_delay_and_retry(retries)
+    delay = RETRY_DELAY**retries
+    @logger.warn(
+      "Server error (500) during #{@last_api_call}. Retrying in #{delay} seconds... " \
+      "(Attempt #{retries}/#{MAX_RETRIES})"
+    )
+    sleep(delay)
+  end
+
+  def log_api_error(error, reason, detail = nil)
+    @logger.error("#{reason} Error during #{@last_api_call}: #{error.message}")
+    @logger.error(detail) if detail
+    error_response_debug(error)
 
     @logger.error('❌ Authentication issue: Check your OpenAI API key!') if error.message.include?('401')
     @logger.error('❌ Rate Limiting issue: Check your OpenAI API remaining credits') if error.message.include?('429')
+  end
+
+  def error_response_debug(error)
+    return unless error.response
+
+    @logger.debug("Response Headers: #{error.response[:headers]}")
+    @logger.debug("Response Status Code: #{error.response[:status]}")
+    @logger.debug("Response Body: #{error.response[:body]}")
   end
 end

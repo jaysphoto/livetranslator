@@ -39,6 +39,11 @@ RSpec.describe TranscriberOpenAI do
     expect(transcriber.transcribe_audio(mp4_file.path)).to eq(mock_transscribe_response)
   end
 
+  it 'Gives up on subsequent Server Error 500 responses' do
+    simulate_http_server_error_give_up subject: audio_double, method: :transcribe, times: 5
+    expect(transcriber.transcribe_audio(mp4_file.path)).to be_nil
+  end
+
   # Helper methods to provide test data
   def mock_translated_text
     'Translated text'
@@ -61,6 +66,13 @@ RSpec.describe TranscriberOpenAI do
     allow(subject).to receive(method).twice do
       response = api_responses.shift
       response == :raise ? raise(Faraday::ServerError, 'Server Error') : response
+    end
+  end
+
+  def simulate_http_server_error_give_up(subject:, method:, times:)
+    # API call raises ServerError a number of times
+    allow(subject).to receive(method).at_least(times).times do
+      raise(Faraday::ServerError, 'Server Error')
     end
   end
 end

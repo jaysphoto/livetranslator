@@ -45,17 +45,13 @@ RSpec.describe LiveTranscriber do
   describe '#start' do
     subject(:transcriber) { described_class.new(stream_url) }
 
-    before do
-      allow(Net::HTTP).to receive(:get_response)
-    end
-
-    it 'sets running to true', :aggregate_failures do
-      transcriber.start
+    it 'sets running to true' do
       # Use the first HTTP request to stop processing and check the @running flag
-      expect(Net::HTTP).to have_received(:get_response) do
+      allow(Net::HTTP).to receive(:get_response) do
         expect(transcriber.instance_variable_get('@running')).to be true
         transcriber.stop
       end
+      transcriber.start
     end
   end
 

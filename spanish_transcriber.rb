@@ -3,7 +3,7 @@ require 'logger'
 
 require './lib/audio_file'
 require './lib/audio_file/converter'
-require './transcribers/openai'
+require './lib/transcribers/openai'
 
 ## Transcriber class, only transcribing Spanish-to-English currently
 class SpanishTranscriber

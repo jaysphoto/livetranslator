@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 require 'rspec'
 require_relative '../display_translation'
 
@@ -9,9 +7,12 @@ RSpec.describe DisplayTranslation do
   let(:callback) { ->(result) {} }
 
   before do
+    allow(callback).to receive(:call)
+  end
+
+  after do
     FileUtils.rm_f file_path
     FileUtils.rm_f file_path_ignored
-    allow(callback).to receive(:call)
   end
 
   it 'gets the latest English translation text' do
@@ -36,6 +37,8 @@ RSpec.describe DisplayTranslation do
   it 'follows file system changes' do
     display.follow_live_text(&callback)
 
+    # sleep to allow Listener to wake up
+    sleep 0.5
     # expect streaming text to be translated
     File.write(file_path, file_contents)
     # sleep to allow Listener to wake up
@@ -44,6 +47,7 @@ RSpec.describe DisplayTranslation do
     expect(callback).to have_received(:call).with(file_contents)
   end
 
+  # Helper methods to provide test data
   def file_path
     'live_text/live_text_EN.txt'
   end

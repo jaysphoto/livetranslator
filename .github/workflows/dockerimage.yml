@@ -1,4 +1,4 @@
-name: ci
+name: Docker Image
 
 on:
   push:
@@ -9,6 +9,13 @@ on:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - dockerfile: ./Dockerfile
+            imagetag: latest
+          - dockerfile: ./Dockerfile.alpine
+            imagetag: latest-alpine
     steps:
       -
         name: Checkout
@@ -30,6 +37,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           push: true
           platforms: linux/amd64
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/livetranslator:latest
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/livetranslator:${{ matrix.imagetag }}

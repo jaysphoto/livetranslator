@@ -2,6 +2,7 @@ name: Docker Image
 
 on:
   push:
+    if: github.repository_owner == 'jaysphoto'
     branches:
      - main
 

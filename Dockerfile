@@ -5,6 +5,7 @@ ARG BUNDLER_WITH=development
 # Install system dependencies including FFmpeg
 RUN apt-get update && apt-get install -y \
     ffmpeg \
+    openssl \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 

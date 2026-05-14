@@ -2,20 +2,23 @@ name: Docker Image
 
 on:
   push:
-    if: github.repository_owner == 'jaysphoto'
     branches:
      - main
 
 jobs:
   docker:
+    if: ${{ (vars.DOCKERHUB_USERNAME || false) }}
     runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ vars.DOCKERHUB_USERNAME }}/livetranslator
+
     strategy:
       matrix:
         include:
           - dockerfile: ./Dockerfile
-            imagetag: latest
+            imagetag: 
           - dockerfile: ./Dockerfile.alpine
-            imagetag: latest-alpine
+            imagetag: -alpine
     steps:
       -
         name: Checkout
@@ -33,11 +36,37 @@ jobs:
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
       -
-        name: Build and push
+        name: Build
         uses: docker/build-push-action@v7
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: |
+              BUNDLER_WITH=production
+          push: false
+          platforms: linux/amd64
+          tags: ${{ env.IMAGE }}:test${{ matrix.imagetag }}
+      - 
+        name: Docker Scout
+        id: docker-scout
+        uses: docker/scout-action@v1
+        with:
+          command: quickview,compare
+          image: ${{ env.IMAGE }}:latest${{ matrix.imagetag }}
+          organization: ${{ vars.DOCKERHUB_USERNAME }}
+          to-latest: true
+          ignore-base: true
+          ignore-unchanged: true
+          only-severities: critical,high
+      -
+        name: Push
+        uses: docker/build-push-action@v7
+        if: ${{ (vars.DOCKERHUB_PUSH_IMAGE || false) }}
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          build-args: |
+              BUNDLER_WITH=production
           push: true
           platforms: linux/amd64
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/livetranslator:${{ matrix.imagetag }}
+          tags: ${{ env.IMAGE }}:latest${{ matrix.imagetag }}

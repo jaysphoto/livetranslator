@@ -54,6 +54,7 @@ jobs:
         with:
           command: quickview,compare
           image: ${{ env.IMAGE }}:latest${{ matrix.imagetag }}
+          organization: ${{ vars.DOCKERHUB_USERNAME }}
           to-latest: true
           ignore-base: true
           ignore-unchanged: true

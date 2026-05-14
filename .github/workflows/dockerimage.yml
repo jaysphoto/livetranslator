@@ -2,7 +2,7 @@ name: Docker Image
 
 on:
   push:
-    if: vars.DOCKERHUB_USERNAME != ''
+    if: ${{ vars.DOCKERHUB_USERNAME || "" != "" }}
     branches:
      - main
      - dockerbuildx
@@ -41,7 +41,7 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          push: ${{ vars.DOCKERHUB_PUSH_IMAGE}}
+          push: ${{ vars.DOCKERHUB_PUSH_IMAGE || false }}
           platforms: linux/amd64
           tags: ${{ vars.DOCKERHUB_USERNAME }}/livetranslator:${{ matrix.imagetag }}
       - 

@@ -83,12 +83,12 @@ class TranslationServer < Sinatra::Base
   post '/translation' do
     data = JSON.parse(request.body.read)
     translation = $translations.add(data['spanish'], data['english'])
-    
+
     # Notify all connected websocket clients
     settings.sockets.each do |socket|
       socket.send(translation.to_json)
     end
-    
+
     json translation
   end
 end
@@ -122,10 +122,10 @@ __END__
 
 <script>
   const translations = document.getElementById('translations');
-  
+
   // WebSocket connection for real-time updates
   const ws = new WebSocket('ws://' + window.location.host + '/websocket');
-  
+
   ws.onmessage = (msg) => {
     const translation = JSON.parse(msg.data);
     addTranslation(translation);
@@ -177,7 +177,7 @@ youtube_stream = YoutubeAudioSource.new(youtube_url)
 youtube_stream.start do |chunk|
   spanish_text = transcriber.transcribe(chunk)
   english_text = translator.translate(spanish_text)
-  
+
   # Send to our Sinatra server
   HTTP.post('http://localhost:4567/translation', json: {
     spanish: spanish_text,

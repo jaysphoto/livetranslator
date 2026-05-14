@@ -16,7 +16,7 @@ jobs:
       matrix:
         include:
           - dockerfile: ./Dockerfile
-            imagetag: 
+            imagetag:
           - dockerfile: ./Dockerfile.alpine
             imagetag: -alpine
     steps:
@@ -46,7 +46,7 @@ jobs:
           push: false
           platforms: linux/amd64
           tags: ${{ env.IMAGE }}:test${{ matrix.imagetag }}
-      - 
+      -
         name: Docker Scout
         id: docker-scout
         uses: docker/scout-action@v1

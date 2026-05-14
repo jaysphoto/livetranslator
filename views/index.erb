@@ -16,7 +16,7 @@
 </head>
 <body class="p-6">
     <div id="small-text" class="hidden fixed top-2 left-2 text-[8px] text-boquer-blue">Boquercom</div>
-    <h1 id="headline" class="text-3xl font-bold">Hello World! Boquercom speaking...</h1>        
+    <h1 id="headline" class="text-3xl font-bold">Hello World! Boquercom speaking...</h1>
 
     <p id="result-container" class="mt-4 text-lg">
       <%= @data[:en_text] %>
@@ -37,7 +37,7 @@
           const errorDiv = document.getElementById('error-container'); // Reference to error div
           errorDiv.textContent = ''; // Clear previous error messages
           const apiUrl = '/update';
-                    
+
           fetch(apiUrl)
             .then(response => {
               // Check if the response is ok (status code 200-299)

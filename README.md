@@ -27,7 +27,7 @@ Bring up the development stack by issuing the docker compose command:
 `docker compose up`
 
 This will allow you to view the translations live at:
-http://localhost:4567 
+http://localhost:4567
 
 Either point a local broadcast tool (for example [OBS Studio](https://obsproject.com/) at the endpoint: `rtmp://localhost:1935/stream` and set the stream key name.
 
@@ -35,7 +35,7 @@ Or, use ffmpeg to pull and direct an example stream (RTVe here) to livetranslati
 
 `ffmpeg -analyzeduration 0 -i 'https://rtvelivesrc2.rtve.es/live-origin/24h-hls/bitrate_3.m3u8' -f flv rtmp://localhost:1935/stream/hello`
 
-Dependencies: 
+Dependencies:
 - Docker (https://www.docker.com/get-started/)
 - Open AI API Key [https://platform.openai.com/docs/guides/speech-to-text](https://platform.openai.com/api-keys)
 
@@ -111,7 +111,7 @@ curl --request POST \
   --form model=whisper-1
 ```
 
-## Application Deployment 
+## Application Deployment
 
 ### Heroku Deployment
 
@@ -149,16 +149,15 @@ You now need to go into the Heroku Dashboard, and allow the server to run via th
 
 Pushing The Latest Code To Heroku
 
-Do your changes. Commit with message, and push to your own (feature) branch. 
+Do your changes. Commit with message, and push to your own (feature) branch.
 i.e. git commit -am "description of changes"
 
 Automating The Deployment
 
-It is possible to run the rspec tests either via Github or Heroku, and then deploy. 
+It is possible to run the rspec tests either via Github or Heroku, and then deploy.
 
 ## Trying Alternative Hosts.
 
 - Fly.io should be free, but was having issues before I tried Heroku. Probably worth retrying.
 
 - Obtaining a AWS mini free instance (Believe free for a year for new customers like Boquercom?) Think, with Docker finished, and a motivated maintainer this should be possible.
-

@@ -2,9 +2,10 @@ name: Docker Image
 
 on:
   push:
-    if: github.repository_owner == 'jaysphoto'
+    if: vars.DOCKERHUB_USERNAME != ''
     branches:
      - main
+     - dockerbuildx
 
 jobs:
   docker:
@@ -14,8 +15,10 @@ jobs:
         include:
           - dockerfile: ./Dockerfile
             imagetag: latest
+            baseimage: ruby:3.2-slim
           - dockerfile: ./Dockerfile.alpine
             imagetag: latest-alpine
+            baseimage: ruby:3.2-alpine
     steps:
       -
         name: Checkout
@@ -38,6 +41,13 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          push: true
+          push: ${{ vars.DOCKERHUB_PUSH_IMAGE}}
           platforms: linux/amd64
           tags: ${{ vars.DOCKERHUB_USERNAME }}/livetranslator:${{ matrix.imagetag }}
+      - 
+        name: Docker Scout
+        id: docker-scout
+        uses: docker/scout-action@v1
+        with:
+          command: cves,recommendations
+          to: ${{ matrix.baseimage }}

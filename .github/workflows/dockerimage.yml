@@ -2,13 +2,13 @@ name: Docker Image
 
 on:
   push:
-    if: ${{ vars.DOCKERHUB_USERNAME || False }}
     branches:
      - main
      - dockerbuildx
 
 jobs:
   docker:
+    if: ${{ (vars.DOCKERHUB_USERNAME || false) }}
     runs-on: ubuntu-latest
     strategy:
       matrix:

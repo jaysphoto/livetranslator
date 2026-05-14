@@ -2,7 +2,7 @@ name: Docker Image
 
 on:
   push:
-    if: ${{ vars.DOCKERHUB_USERNAME || "" != "" }}
+    if: ${{ env.DOCKERHUB_USERNAME || "" != "" }}
     branches:
      - main
      - dockerbuildx

@@ -2,6 +2,7 @@ name: Docker Image
 
 on:
   push:
+    if: ${{ vars.DOCKERHUB_USERNAME || False }}
     branches:
      - main
      - dockerbuildx
@@ -40,6 +41,8 @@ jobs:
         with:
           context: .
           file: ${{ matrix.dockerfile }}
+          build-args: |
+              BUNDLER_WITH=production
           push: false
           platforms: linux/amd64
           tags: ${{ vars.DOCKERHUB_USERNAME }}/livetranslator:${{ matrix.imagetag }}
@@ -48,7 +51,7 @@ jobs:
         id: docker-scout
         uses: docker/scout-action@v1
         with:
-          command: cves,recommendations,compare
+          command: compare
           to-latest: true
           ignore-base: true
           ignore-unchanged: true
